@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none">
+  <defs>
+    <linearGradient id="keBgGrad" x1="16" y1="8" x2="112" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="100%" stop-color="#142866" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="124" height="124" rx="26" fill="url(#keBgGrad)" />
+  <rect x="6" y="6" width="116" height="116" rx="22" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="2.5" />
+
+  <!-- Bold Geometric K -->
+  <rect x="22" y="28" width="13" height="60" rx="2" fill="#FFFFFF" />
+  <polygon points="34.5,55.5 51.5,28 65,28 45.5,57.5" fill="#FFFFFF" />
+  <polygon points="41.5,52.5 66,88 51.5,88 34.5,61" fill="#FFFFFF" />
+
+  <!-- Bold Geometric E -->
+  <rect x="70" y="28" width="13" height="60" rx="2" fill="#FFFFFF" />
+  <rect x="70" y="28" width="36" height="11.5" rx="2" fill="#FFFFFF" />
+  <rect x="70" y="52.25" width="29" height="11.5" rx="2" fill="#FFFFFF" />
+  <rect x="70" y="76.5" width="36" height="11.5" rx="2" fill="#FFFFFF" />
+
+  <!-- Crisp High-Contrast Distribution Accent Bar -->
+  <rect x="22" y="97" width="84" height="6" rx="3" fill="#2DD4BF" />
+</svg>

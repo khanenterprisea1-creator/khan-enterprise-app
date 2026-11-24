@@ -1,0 +1,6 @@
+{
+  "name": "Distribution Sales Ledger",
+  "description": "ডিস্ট্রিবিউশন এজেন্সির কোম্পানি ভিত্তিক প্রোডাক্ট, রেট, মার্কেট ডিসপ্যাচ, রিটার্ন ও প্রতিদিনের সেলস হিসাবের ওয়েব সফটওয়্যার।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

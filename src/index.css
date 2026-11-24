@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    font-family: "Hind Siliguri", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.6;
+    background-color: #f4f7fa;
+    color: #0f172a;
+    overflow-x: clip;
+  }
+
+  input,
+  select,
+  textarea {
+    color: #0f172a;
+    font-weight: 500;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  table thead th {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  table tbody td {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #0f172a;
+  }
+
+  table tfoot td {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  table tbody tr {
+    transition: background-color 140ms ease;
+  }
+
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .font-mono-tabular {
+    font-family: "JetBrains Mono", "Hind Siliguri", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.015em;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Prevent mobile browser auto-zoom on form fields (<16px triggers zoom in iOS Safari / Android) */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  section {
+    box-shadow: none !important;
+  }
+
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.sr-session-active > * {
+    display: none !important;
+  }
+
+  body.sr-session-active::before {
+    content: "Khan Enterprise — নিরাপত্তার কারণে S.R একাউন্টে প্রিন্ট, PDF সেভ ও রিপোর্ট ডাউনলোড বন্ধ রয়েছে।";
+    display: block !important;
+    padding: 48px 24px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  body.printing-receipt-only #app-main-shell {
+    display: none !important;
+  }
+
+  body.printing-receipt-only #receipt-print-root {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.printing-receipt-only #receipt-print-root .receipt-modal-chrome {
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  body.printing-chalan-memo-only #app-main-shell > header,
+  body.printing-chalan-memo-only #app-main-shell > footer,
+  body.printing-chalan-memo-only .chalan-screen-only {
+    display: none !important;
+  }
+
+  body.printing-chalan-memo-only #chalan-verify-print-root {
+    display: block !important;
+  }
+}
+
+.sr-protected-content,
+.sr-protected-content * {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+}

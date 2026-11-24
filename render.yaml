@@ -1,0 +1,17 @@
+# Render Blueprint Configuration (Node Web Service for Express API + Vite React SPA)
+# Dashboard manual settings equivalent:
+#   Build Command: npm install && npm run build
+#   Start Command: NODE_ENV=production node server.ts
+#   Environment Variables: Set GEMINI_API_KEY in Render Dashboard
+
+services:
+  - type: web
+    name: khan-enterprise-distribution
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: NODE_ENV=production node server.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
