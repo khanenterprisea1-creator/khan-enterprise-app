@@ -2,7 +2,8 @@
 # Dashboard manual settings equivalent:
 #   Build Command: npm install && npm run build
 #   Start Command: NODE_ENV=production node server.ts
-#   Environment Variables: Set GEMINI_API_KEY in Render Dashboard
+#   Environment Variables: Set GEMINI_API_KEY, VITE_SUPABASE_URL and
+#   VITE_SUPABASE_ANON_KEY in Render Dashboard
 
 services:
   - type: web
@@ -14,4 +15,8 @@ services:
       - key: NODE_ENV
         value: production
       - key: GEMINI_API_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
         sync: false

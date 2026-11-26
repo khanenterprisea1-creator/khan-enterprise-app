@@ -15,6 +15,7 @@ import {
   StockMovement,
   StockMovementType,
 } from '../types/ledger';
+import { isSupabaseConfigured, supabase } from './supabase';
 
 const STORAGE_KEY = 'distribution_agency_ledger_v1';
 
@@ -121,134 +122,265 @@ export function formatNumber(value: number): string {
   });
 }
 
-export function loadLedgerData(): LedgerData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return {
-        version: 1,
-        companies: [],
-        products: [],
-        entries: {},
-        cashTransactions: [],
-        companyLedgerEntries: [],
-        stockMovements: [],
-        customers: [],
-        customerCreditEntries: [],
-        authConfig: { companyPasswordHashes: {} },
-      };
+// ---------------------------------------------------------------------------
+// Cloud sync (Supabase) — the `ledger_state` table (row id 'main') is the
+// single source of truth. localStorage stays only as an offline cache so the
+// app keeps working when the network / Supabase is unreachable.
+// ---------------------------------------------------------------------------
+
+const LEDGER_ROW_ID = 'main';
+const CLOUD_SAVE_DEBOUNCE_MS = 500;
+
+export type CloudSyncStatus = 'not-configured' | 'loading' | 'synced' | 'saving' | 'offline';
+
+let cloudSyncStatus: CloudSyncStatus = isSupabaseConfigured ? 'loading' : 'not-configured';
+const cloudSyncListeners = new Set<(status: CloudSyncStatus) => void>();
+
+function setCloudSyncStatus(next: CloudSyncStatus): void {
+  if (next === cloudSyncStatus) return;
+  cloudSyncStatus = next;
+  for (const listener of cloudSyncListeners) {
+    try {
+      listener(next);
+    } catch {
+      // Ignore listener errors.
     }
-    const parsed = JSON.parse(raw) as Partial<LedgerData>;
-    const rawAuth = parsed.authConfig;
-    const companyHashes =
-      rawAuth &&
-      typeof rawAuth.companyPasswordHashes === 'object' &&
-      rawAuth.companyPasswordHashes !== null
-        ? rawAuth.companyPasswordHashes
-        : {};
-    const companies = Array.isArray(parsed.companies) ? parsed.companies : [];
-    const products = Array.isArray(parsed.products) ? parsed.products : [];
-    const entries =
-      parsed.entries && typeof parsed.entries === 'object' ? parsed.entries : {};
-    const rawCash = Array.isArray(parsed.cashTransactions) ? parsed.cashTransactions : [];
-    const companyLedgerEntries = Array.isArray(parsed.companyLedgerEntries)
-      ? parsed.companyLedgerEntries
-      : [];
-    const stockMovements = Array.isArray(parsed.stockMovements) ? parsed.stockMovements : [];
-    const rawCustomers = Array.isArray(parsed.customers) ? parsed.customers : [];
-    const rawCreditEntries = Array.isArray(parsed.customerCreditEntries)
-      ? parsed.customerCreditEntries
-      : [];
-
-    const DEMO_CASH_COMPANY: Record<string, string> = {
-      tx_1: 'comp_pran',
-      tx_2: 'comp_pran',
-      tx_3: 'comp_pran',
-      tx_4: 'comp_square',
-      tx_5: 'comp_square',
-      tx_6: 'comp_akij',
-      tx_7: 'comp_pran',
-      tx_8: 'comp_akij',
-    };
-    const DEMO_CUSTOMER_COMPANY: Record<string, string> = {
-      cust_1: 'comp_pran',
-      cust_2: 'comp_akij',
-      cust_3: 'comp_square',
-    };
-    const DEMO_CREDIT_COMPANY: Record<string, string> = {
-      cc_1: 'comp_pran',
-      cc_2: 'comp_pran',
-      cc_3: 'comp_akij',
-      cc_4: 'comp_akij',
-      cc_5: 'comp_square',
-    };
-
-    const singleCompanyId = companies.length === 1 ? companies[0].id : undefined;
-
-    const customers: Customer[] = rawCustomers.map((c) => {
-      if (c.companyId) return c;
-      const inferred = DEMO_CUSTOMER_COMPANY[c.id] ?? singleCompanyId;
-      return inferred ? { ...c, companyId: inferred } : c;
-    });
-
-    const customerCompanyMap = new Map<string, string>();
-    for (const c of customers) {
-      if (c.companyId) customerCompanyMap.set(c.id, c.companyId);
-    }
-
-    const cashTransactions: CashTransaction[] = rawCash.map((tx) => {
-      if (tx.companyId) return tx;
-      const inferred = DEMO_CASH_COMPANY[tx.id] ?? singleCompanyId;
-      return inferred ? { ...tx, companyId: inferred } : tx;
-    });
-
-    const customerCreditEntries: CustomerCreditEntry[] = rawCreditEntries.map((ce) => {
-      if (ce.companyId) return ce;
-      const inferred =
-        DEMO_CREDIT_COMPANY[ce.id] ?? customerCompanyMap.get(ce.customerId) ?? singleCompanyId;
-      return inferred ? { ...ce, companyId: inferred } : ce;
-    });
-
-    return {
-      version: 1,
-      companies,
-      products,
-      entries,
-      cashTransactions,
-      companyLedgerEntries,
-      stockMovements,
-      customers,
-      customerCreditEntries,
-      authConfig: {
-        adminPasswordHash:
-          rawAuth && typeof rawAuth.adminPasswordHash === 'string'
-            ? rawAuth.adminPasswordHash
-            : undefined,
-        companyPasswordHashes: companyHashes,
-      },
-    };
-  } catch {
-    return {
-      version: 1,
-      companies: [],
-      products: [],
-      entries: {},
-      cashTransactions: [],
-      companyLedgerEntries: [],
-      stockMovements: [],
-      customers: [],
-      customerCreditEntries: [],
-      authConfig: { companyPasswordHashes: {} },
-    };
   }
 }
 
-export function saveLedgerData(data: LedgerData): void {
+export function getCloudSyncStatus(): CloudSyncStatus {
+  return cloudSyncStatus;
+}
+
+export function subscribeCloudSyncStatus(
+  listener: (status: CloudSyncStatus) => void
+): () => void {
+  cloudSyncListeners.add(listener);
+  return () => {
+    cloudSyncListeners.delete(listener);
+  };
+}
+
+export function emptyLedgerData(): LedgerData {
+  return {
+    version: 1,
+    companies: [],
+    products: [],
+    entries: {},
+    cashTransactions: [],
+    companyLedgerEntries: [],
+    stockMovements: [],
+    customers: [],
+    customerCreditEntries: [],
+    authConfig: { companyPasswordHashes: {} },
+  };
+}
+
+function normalizeLedgerData(parsed: Partial<LedgerData>): LedgerData {
+  const rawAuth = parsed.authConfig;
+  const companyHashes =
+    rawAuth &&
+    typeof rawAuth.companyPasswordHashes === 'object' &&
+    rawAuth.companyPasswordHashes !== null
+      ? rawAuth.companyPasswordHashes
+      : {};
+  const companies = Array.isArray(parsed.companies) ? parsed.companies : [];
+  const products = Array.isArray(parsed.products) ? parsed.products : [];
+  const entries =
+    parsed.entries && typeof parsed.entries === 'object' ? parsed.entries : {};
+  const rawCash = Array.isArray(parsed.cashTransactions) ? parsed.cashTransactions : [];
+  const companyLedgerEntries = Array.isArray(parsed.companyLedgerEntries)
+    ? parsed.companyLedgerEntries
+    : [];
+  const stockMovements = Array.isArray(parsed.stockMovements) ? parsed.stockMovements : [];
+  const rawCustomers = Array.isArray(parsed.customers) ? parsed.customers : [];
+  const rawCreditEntries = Array.isArray(parsed.customerCreditEntries)
+    ? parsed.customerCreditEntries
+    : [];
+
+  const DEMO_CASH_COMPANY: Record<string, string> = {
+    tx_1: 'comp_pran',
+    tx_2: 'comp_pran',
+    tx_3: 'comp_pran',
+    tx_4: 'comp_square',
+    tx_5: 'comp_square',
+    tx_6: 'comp_akij',
+    tx_7: 'comp_pran',
+    tx_8: 'comp_akij',
+  };
+  const DEMO_CUSTOMER_COMPANY: Record<string, string> = {
+    cust_1: 'comp_pran',
+    cust_2: 'comp_akij',
+    cust_3: 'comp_square',
+  };
+  const DEMO_CREDIT_COMPANY: Record<string, string> = {
+    cc_1: 'comp_pran',
+    cc_2: 'comp_pran',
+    cc_3: 'comp_akij',
+    cc_4: 'comp_akij',
+    cc_5: 'comp_square',
+  };
+
+  const singleCompanyId = companies.length === 1 ? companies[0].id : undefined;
+
+  const customers: Customer[] = rawCustomers.map((c) => {
+    if (c.companyId) return c;
+    const inferred = DEMO_CUSTOMER_COMPANY[c.id] ?? singleCompanyId;
+    return inferred ? { ...c, companyId: inferred } : c;
+  });
+
+  const customerCompanyMap = new Map<string, string>();
+  for (const c of customers) {
+    if (c.companyId) customerCompanyMap.set(c.id, c.companyId);
+  }
+
+  const cashTransactions: CashTransaction[] = rawCash.map((tx) => {
+    if (tx.companyId) return tx;
+    const inferred = DEMO_CASH_COMPANY[tx.id] ?? singleCompanyId;
+    return inferred ? { ...tx, companyId: inferred } : tx;
+  });
+
+  const customerCreditEntries: CustomerCreditEntry[] = rawCreditEntries.map((ce) => {
+    if (ce.companyId) return ce;
+    const inferred =
+      DEMO_CREDIT_COMPANY[ce.id] ?? customerCompanyMap.get(ce.customerId) ?? singleCompanyId;
+    return inferred ? { ...ce, companyId: inferred } : ce;
+  });
+
+  return {
+    version: 1,
+    companies,
+    products,
+    entries,
+    cashTransactions,
+    companyLedgerEntries,
+    stockMovements,
+    customers,
+    customerCreditEntries,
+    authConfig: {
+      adminPasswordHash:
+        rawAuth && typeof rawAuth.adminPasswordHash === 'string'
+          ? rawAuth.adminPasswordHash
+          : undefined,
+      companyPasswordHashes: companyHashes,
+    },
+  };
+}
+
+function writeCache(data: LedgerData): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (err) {
     console.error('Failed to persist ledger data:', err);
   }
+}
+
+/** Synchronous read of the offline cache only (used for the saved-view check). */
+export function loadCachedLedgerData(): LedgerData {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return emptyLedgerData();
+    return normalizeLedgerData(JSON.parse(raw) as Partial<LedgerData>);
+  } catch {
+    return emptyLedgerData();
+  }
+}
+
+/**
+ * Load the ledger: Supabase first, offline cache as fallback. Never throws —
+ * on any cloud failure it returns the cached copy and marks status 'offline'.
+ */
+export async function loadLedgerData(): Promise<LedgerData> {
+  const cached = loadCachedLedgerData();
+  if (!isSupabaseConfigured || !supabase) {
+    setCloudSyncStatus('not-configured');
+    return cached;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('ledger_state')
+      .select('data')
+      .eq('id', LEDGER_ROW_ID)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      // No cloud row yet (migration not run) — keep using the local cache.
+      setCloudSyncStatus('synced');
+      return cached;
+    }
+    const normalized = normalizeLedgerData(data.data as Partial<LedgerData>);
+    writeCache(normalized);
+    setCloudSyncStatus('synced');
+    return normalized;
+  } catch (err) {
+    console.error('Cloud load failed, using offline cache:', err);
+    setCloudSyncStatus('offline');
+    return cached;
+  }
+}
+
+let cloudSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingCloudSave: LedgerData | null = null;
+let pendingCloudSaveResolvers: Array<(ok: boolean) => void> = [];
+
+async function flushCloudSave(): Promise<void> {
+  cloudSaveTimer = null;
+  const payload = pendingCloudSave;
+  pendingCloudSave = null;
+  const resolvers = pendingCloudSaveResolvers;
+  pendingCloudSaveResolvers = [];
+  if (!payload || !supabase) {
+    for (const resolve of resolvers) resolve(false);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('ledger_state').upsert({
+      id: LEDGER_ROW_ID,
+      data: payload,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    setCloudSyncStatus('synced');
+    for (const resolve of resolvers) resolve(true);
+  } catch (err) {
+    console.error('Cloud save failed, data kept in offline cache:', err);
+    setCloudSyncStatus('offline');
+    for (const resolve of resolvers) resolve(false);
+  }
+}
+
+/**
+ * Save the ledger: the offline cache is updated immediately, the cloud
+ * upsert is debounced (~500ms) so rapid edits become one write. Resolves
+ * true when the cloud write succeeds, false when only the cache was updated.
+ */
+export function saveLedgerData(data: LedgerData): Promise<boolean> {
+  writeCache(data);
+  if (!isSupabaseConfigured || !supabase) {
+    setCloudSyncStatus('not-configured');
+    return Promise.resolve(false);
+  }
+  pendingCloudSave = data;
+  const promise = new Promise<boolean>((resolve) => {
+    pendingCloudSaveResolvers.push(resolve);
+  });
+  if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
+  setCloudSyncStatus('saving');
+  cloudSaveTimer = setTimeout(() => {
+    void flushCloudSave();
+  }, CLOUD_SAVE_DEBOUNCE_MS);
+  return promise;
+}
+
+// If the tab is hidden with a save still debounced, push it right away
+// instead of waiting — the offline cache already holds the data either way.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && cloudSaveTimer) {
+      clearTimeout(cloudSaveTimer);
+      void flushCloudSave();
+    }
+  });
 }
 
 export function getEntryKey(companyId: string, date: string): string {

@@ -35,16 +35,23 @@ import {
   computeLineItem,
   DEMO_COMPANY_IDS,
   downloadAllInOneExcelCsv,
+  emptyLedgerData,
   generateId,
+  getCloudSyncStatus,
   getEntryKey,
   getTodayISO,
   hasDemoLedgerData,
+  loadCachedLedgerData,
   loadLedgerData,
   mergeSampleLedgerData,
   removeDemoLedgerData,
   saveLedgerData,
+  subscribeCloudSyncStatus,
   summarizeEntry,
+  type CloudSyncStatus,
 } from './utils/storage';
+import { isSupabaseConfigured, supabase } from './utils/supabase';
+import type { Session } from '@supabase/supabase-js';
 import {
   buildStockNotifications,
   LAST_FIVE_STOCK_THRESHOLD,
@@ -80,6 +87,7 @@ import { CompanyLedgerPage } from './components/CompanyLedgerPage';
 import { StockAlertFilterMode, StockReportPage } from './components/StockReportPage';
 import { CustomerCreditPage } from './components/CustomerCreditPage';
 import { AuthGate } from './components/AuthGate';
+import { CloudSetupNotice, CloudSignIn, CloudSyncBanner } from './components/CloudSignIn';
 import { SecurityModal } from './components/SecurityModal';
 import { CompanyModal, CompanySavePayload } from './components/CompanyModal';
 import { ProductModal } from './components/ProductModal';
@@ -107,7 +115,16 @@ type ActiveView =
   | { type: 'company'; companyId: string };
 
 export default function App() {
-  const [data, setData] = useState<LedgerData>(() => loadLedgerData());
+  // Ledger data starts empty and is loaded from the cloud (or the offline
+  // cache) once the cloud gate is open — see the load effect below.
+  const [data, setData] = useState<LedgerData>(() => emptyLedgerData());
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [cloudSession, setCloudSession] = useState<Session | null>(null);
+  const [cloudChecked, setCloudChecked] = useState(false);
+  const [continueOffline, setContinueOffline] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>(() =>
+    getCloudSyncStatus()
+  );
   const [session, setSession] = useState<AuthSession | null>(() => loadAuthSession());
   const [activeView, setActiveView] = useState<ActiveView>(() => {
     try {
@@ -116,7 +133,7 @@ export default function App() {
       const parsed = JSON.parse(raw) as ActiveView;
       if (parsed && typeof parsed === 'object' && 'type' in parsed) {
         if (parsed.type === 'company') {
-          const initialData = loadLedgerData();
+          const initialData = loadCachedLedgerData();
           if (initialData.companies.some((c) => c.id === parsed.companyId)) {
             return parsed;
           }
@@ -219,9 +236,63 @@ export default function App() {
   const [toastDismissed, setToastDismissed] = useState(false);
   const lastUnreadCountRef = useRef<number>(0);
 
+  // Persist every change: offline cache immediately, cloud upsert debounced
+  // (see storage.ts). Skipped until the initial cloud load finishes, so an
+  // empty ledger can never overwrite the cloud row before it has been read.
   useEffect(() => {
-    saveLedgerData(data);
-  }, [data]);
+    if (!dataLoaded) return;
+    void saveLedgerData(data);
+  }, [data, dataLoaded]);
+
+  // --- Cloud sync (Supabase) -------------------------------------------------
+  // Track the owner Supabase session (first gate, before the in-app passwords).
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setCloudChecked(true);
+      return;
+    }
+    let cancelled = false;
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!cancelled) {
+          setCloudSession(session);
+          setCloudChecked(true);
+        }
+      })
+      .catch(() => {
+        // Unreachable (offline?) — still unblock the UI; the sign-in form
+        // will show the network error if the user tries to sign in.
+        if (!cancelled) setCloudChecked(true);
+      });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCloudSession(session);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => subscribeCloudSyncStatus(setCloudSyncStatus), []);
+
+  // Load the ledger once the cloud gate is open (signed in, or offline mode).
+  useEffect(() => {
+    if (!cloudChecked || dataLoaded) return;
+    if (!isSupabaseConfigured && !continueOffline) return;
+    if (isSupabaseConfigured && !cloudSession && !continueOffline) return;
+    let cancelled = false;
+    void loadLedgerData().then((loaded) => {
+      if (cancelled) return;
+      setData(loaded);
+      setDataLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudChecked, cloudSession, continueOffline, dataLoaded]);
 
   useEffect(() => {
     saveReadNotificationSignatures(readNotificationSignatures);
@@ -790,6 +861,11 @@ export default function App() {
     setShowAuthGate(false);
     setViewingPublicHome(false);
     setActiveView({ type: 'overview' });
+    // Also sign out of the cloud account so the next visit asks for the
+    // Supabase login again (full logout).
+    if (supabase) {
+      void supabase.auth.signOut();
+    }
   };
 
   const handleAuthenticated = (nextSession: AuthSession) => {
@@ -832,6 +908,28 @@ export default function App() {
     });
   };
 
+  // --- Cloud gates (run before the in-app password gates) --------------------
+  if (!cloudChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fa] px-4">
+        <p className="text-sm font-bold text-[#1e293b]">লোড হচ্ছে…</p>
+      </div>
+    );
+  }
+  if (!isSupabaseConfigured && !continueOffline) {
+    return <CloudSetupNotice onContinueOffline={() => setContinueOffline(true)} />;
+  }
+  if (isSupabaseConfigured && !cloudSession && !continueOffline) {
+    return <CloudSignIn />;
+  }
+  if (!dataLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fa] px-4">
+        <p className="text-sm font-bold text-[#1e293b]">হিসাব আনা হচ্ছে…</p>
+      </div>
+    );
+  }
+
   // Require password setup / login before rendering workspace
   const isSessionValid =
     Boolean(data.authConfig.adminPasswordHash) &&
@@ -872,6 +970,7 @@ export default function App() {
     return (
       <SRSecurityShield companyName={companyUserCompany.name}>
         <div className="min-h-screen bg-[#f4f7fa] text-[#0f172a] overflow-x-clip">
+          <CloudSyncBanner status={cloudSyncStatus} />
           <header className="no-print md:sticky md:top-0 z-30 border-b border-slate-300/80 bg-[#F8FAFC]/95 backdrop-blur-md shadow-sm">
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 py-2.5 sm:px-6 sm:py-3">
               <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
@@ -940,6 +1039,7 @@ export default function App() {
 
   return (
     <div id="app-main-shell" className="min-h-screen bg-[#f4f7fa] text-[#0f172a] overflow-x-clip">
+      <CloudSyncBanner status={cloudSyncStatus} />
       {/* Clean Light Header with Balanced Brand Bar + Single-Row Navigation Tabs + Uniform Toolbar */}
       <header className="no-print md:sticky md:top-0 z-30 border-b border-slate-300/85 bg-[#F8FAFC]/95 backdrop-blur-md shadow-sm">
         {/* Top Row: Clean Sharp Logo + Bold #1E3A8A Brand + Balanced Utility Actions */}
