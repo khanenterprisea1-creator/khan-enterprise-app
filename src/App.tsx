@@ -1008,7 +1008,7 @@ export default function App() {
                 <span>{companyUserCompany.name}</span>
                 <span aria-hidden="true" className="text-slate-400">·</span>
                 <span className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900">
-                  S.R ভিউ · ডাউনলোড ও স্ক্রিনশট বন্ধ
+                  S.R ভিউ
                 </span>
               </div>
 
@@ -1026,7 +1026,7 @@ export default function App() {
             <div className="flex md:hidden items-center justify-between gap-2 border-t border-slate-200/80 bg-amber-50/75 px-3 py-1.5 text-xs font-bold text-amber-950">
               <span className="truncate">{companyUserCompany.name}</span>
               <span className="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 text-[11px]">
-                S.R ভিউ (ডাউনলোড বন্ধ)
+                S.R ভিউ
               </span>
             </div>
           </header>

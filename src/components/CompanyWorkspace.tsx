@@ -1498,7 +1498,7 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
             </p>
           </div>
 
-          {isAdmin ? (
+          {isAdmin && (
             <div className="no-print flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -1518,10 +1518,6 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
                 <Printer className="h-4 w-4" />
                 প্রিন্ট
               </button>
-            </div>
-          ) : (
-            <div className="no-print inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 whitespace-nowrap">
-              ডাউনলোড ও প্রিন্ট বন্ধ (S.R ভিউ)
             </div>
           )}
         </div>
