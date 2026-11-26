@@ -6,7 +6,6 @@ import {
   Building2,
   ClipboardCheck,
   Clock,
-  CloudOff,
   Database,
   FileSpreadsheet,
   Home,
@@ -253,12 +252,41 @@ export default function App() {
       return;
     }
     let cancelled = false;
-    supabase.auth
+    // Narrowed once here so the async callbacks below can use it.
+    const client = supabase;
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, session) => {
+      setCloudSession(session);
+    });
+    client.auth
       .getSession()
-      .then(({ data: { session } }) => {
-        if (!cancelled) {
+      .then(async ({ data: { session } }) => {
+        if (cancelled) return;
+        if (session) {
           setCloudSession(session);
           setCloudChecked(true);
+          return;
+        }
+        // No session yet: sign in anonymously in the background so nobody
+        // ever sees the cloud login screen — the owner and S.R.s only ever
+        // enter the in-app admin / company password. Anonymous users still
+        // count as `authenticated` for the ledger RLS policies, and the
+        // code never uses the session's user id, so an anonymous session
+        // works exactly like the owner session here. Requires "Anonymous"
+        // sign-ins to be enabled in Supabase (Authentication → Providers).
+        // If that is off (or the network fails), fall through with no
+        // session — the owner login screen (CloudSignIn) is shown instead.
+        try {
+          const { data: anonData, error: anonError } =
+            await client.auth.signInAnonymously();
+          if (cancelled) return;
+          if (anonError) throw anonError;
+          setCloudSession(anonData.session);
+        } catch {
+          if (!cancelled) setCloudSession(null);
+        } finally {
+          if (!cancelled) setCloudChecked(true);
         }
       })
       .catch(() => {
@@ -266,11 +294,6 @@ export default function App() {
         // will show the network error if the user tries to sign in.
         if (!cancelled) setCloudChecked(true);
       });
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCloudSession(session);
-    });
     return () => {
       cancelled = true;
       subscription.unsubscribe();
@@ -863,28 +886,9 @@ export default function App() {
     setViewingPublicHome(false);
     setActiveView({ type: 'overview' });
     // NOTE: intentionally does NOT sign out of the cloud (Supabase) session.
-    // The owner signs in to the cloud once per device and the session stays
-    // saved in the browser, so S.R.s keep entering only their company
-    // password after logout. Signing out of the cloud here used to force the
-    // owner login screen on every logout, which S.R.s cannot pass.
-    // To disconnect the cloud account from this device, use
-    // handleCloudSignOut (admin header button).
-  };
-
-  // Admin-only: fully disconnect the cloud account from this device.
-  // The next visit will ask for the owner email + password again.
-  const handleCloudSignOut = () => {
-    if (
-      !window.confirm(
-        'এই ডিভাইস থেকে ক্লাউড অ্যাকাউন্ট বের করে দেবেন? এরপর আবার owner ইমেইল + পাসওয়ার্ড দিয়ে লগইন করতে হবে।',
-      )
-    ) {
-      return;
-    }
-    handleLogout();
-    if (supabase) {
-      void supabase.auth.signOut();
-    }
+    // The cloud session is anonymous and created automatically in the
+    // background, so signing out here only ends the in-app admin / company
+    // session. The next visit connects to the cloud again automatically.
   };
 
   const handleAuthenticated = (nextSession: AuthSession) => {
@@ -1148,15 +1152,6 @@ export default function App() {
                 >
                   <Database className="h-4 w-4 text-slate-600 shrink-0" />
                   রিস্টোর ও ডাটা
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloudSignOut}
-                  title="এই ডিভাইস থেকে ক্লাউড অ্যাকাউন্ট বের করে দেবে — এরপর আবার owner লগইন লাগবে"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13.5px] font-semibold text-[#0f172a] transition-colors hover:bg-slate-100 whitespace-nowrap shrink-0"
-                >
-                  <CloudOff className="h-4 w-4 text-slate-600 shrink-0" />
-                  ক্লাউড থেকে বের হন
                 </button>
                 <button
                   type="button"
