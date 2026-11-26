@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, Lock, ShieldAlert } from 'lucide-react';
 import { getTodayISO } from '../utils/storage';
+import { BrandLogo } from './BrandLogo';
 
 interface SRSecurityShieldProps {
   companyName: string;
@@ -197,7 +198,10 @@ export const SRSecurityShield: React.FC<SRSecurityShieldProps> = ({
     };
   }, []);
 
-  const watermarkText = `Khan Enterprise · ${companyName} · স্টাফ/S.R ভিউ · স্ক্রিনশট নিষিদ্ধ · ${getTodayISO()} ${clockLabel}`;
+  // Watermark: Khan Enterprise branding (logo + name) with the company and
+  // date/time, so a leaked screenshot can still be traced — without the
+  // "স্ক্রিনশট নিষিদ্ধ" wording.
+  const watermarkText = `Khan Enterprise · ${companyName} · ${getTodayISO()} ${clockLabel}`;
 
   return (
     <div
@@ -222,8 +226,9 @@ export const SRSecurityShield: React.FC<SRSecurityShieldProps> = ({
           {Array.from({ length: 24 }).map((_, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-extrabold tracking-wide text-[#0f2942]"
+              className="flex items-center justify-center gap-2 whitespace-nowrap text-xs sm:text-sm font-extrabold tracking-wide text-[#0f2942]"
             >
+              <BrandLogo variant="emblem" className="h-7 w-7 shrink-0 rounded-lg" />
               {watermarkText}
             </div>
           ))}
