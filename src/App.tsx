@@ -437,6 +437,7 @@ export default function App() {
               ? {
                   ...c,
                   name: payload.name,
+                  code: payload.code,
                   contactPerson: payload.contactPerson,
                   phone: payload.phone,
                   logoUrl: payload.logoUrl,
@@ -459,6 +460,7 @@ export default function App() {
     const newCompany: Company = {
       id: generateId('comp'),
       name: payload.name,
+      code: payload.code,
       contactPerson: payload.contactPerson,
       phone: payload.phone,
       logoUrl: payload.logoUrl,

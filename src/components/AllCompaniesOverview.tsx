@@ -196,6 +196,7 @@ export const AllCompaniesOverview: React.FC<AllCompaniesOverviewProps> = ({
       if (!q) return true;
       return (
         item.company.name.toLowerCase().includes(q) ||
+        (item.company.code && item.company.code.toLowerCase().includes(q)) ||
         (item.company.contactPerson && item.company.contactPerson.toLowerCase().includes(q))
       );
     });
@@ -808,6 +809,11 @@ export const AllCompaniesOverview: React.FC<AllCompaniesOverviewProps> = ({
                             <h2 className="truncate text-lg font-bold text-[#0f172a] group-hover:text-[#1E3A8A]">
                               {company.name}
                             </h2>
+                            {company.code && (
+                              <span className="rounded-md border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-extrabold text-slate-700 whitespace-nowrap shrink-0">
+                                কোড: {company.code}
+                              </span>
+                            )}
                             {isDemo && (
                               <span className="rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10.5px] font-extrabold text-amber-950 whitespace-nowrap shrink-0">
                                 স্যাম্পল ডেটা

@@ -769,8 +769,8 @@ export function downloadAllInOneExcelCsv(data: LedgerData): void {
   // 1. Companies
   pushSection(
     '[SECTION:COMPANIES]',
-    ['companyId', 'কোম্পানির নাম', 'প্রতিনিধি', 'মোবাইল', 'তৈরির সময়'],
-    data.companies.map((c) => [c.id, c.name, c.contactPerson ?? '', c.phone ?? '', c.createdAt])
+    ['companyId', 'কোম্পানির নাম', 'প্রতিনিধি', 'মোবাইল', 'তৈরির সময়', 'কোড নম্বর'],
+    data.companies.map((c) => [c.id, c.name, c.contactPerson ?? '', c.phone ?? '', c.createdAt, c.code ?? ''])
   );
 
   // 2. Products
@@ -1235,6 +1235,7 @@ export function parseAllInOneCsvBackup(csvText: string, existingAuth: AuthConfig
     .map((r) => ({
       id: r[0].trim(),
       name: r[1].trim(),
+      code: opt(r[5]),
       contactPerson: opt(r[2]),
       phone: opt(r[3]),
       createdAt: opt(r[4]) ?? new Date().toISOString(),

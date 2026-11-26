@@ -17,6 +17,7 @@ import { COMPANY_LOGO_PRESETS, CompanyLogoAvatar } from './CompanyLogoAvatar';
 
 export interface CompanySavePayload {
   name: string;
+  code?: string;
   contactPerson?: string;
   phone?: string;
   logoUrl?: string;
@@ -44,6 +45,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
+  const [code, setCode] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
@@ -59,6 +61,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setName(initialCompany?.name ?? '');
+      setCode(initialCompany?.code ?? '');
       setLogoUrl(initialCompany?.logoUrl ?? '');
       setIsUploadingLogo(false);
       setTsmName(initialCompany?.tsmName ?? '');
@@ -156,6 +159,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
 
     onSave({
       name: trimmed,
+      code: code.trim() || undefined,
       logoUrl: logoUrl.trim() || undefined,
       tsmName: cleanTsmName,
       tsmPhone: cleanTsmPhone,
@@ -206,6 +210,24 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                 if (error) setError('');
               }}
               placeholder="যেমন: প্রাণ [চেয়ার আপ ], স্কয়ার কনজিউমার..."
+              className="w-full min-h-[44px] rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[16px] font-semibold text-[#0f172a] placeholder:text-slate-500 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+            />
+          </div>
+
+          {/* Company Code Number */}
+          <div>
+            <label htmlFor="company-code" className="mb-1.5 block text-sm font-bold text-[#0f172a]">
+              কোড নম্বর <span className="font-medium text-slate-500">(ঐচ্ছিক)</span>
+            </label>
+            <input
+              id="company-code"
+              type="text"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                if (error) setError('');
+              }}
+              placeholder="যেমন: PRN-01, 101..."
               className="w-full min-h-[44px] rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[16px] font-semibold text-[#0f172a] placeholder:text-slate-500 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
             />
           </div>

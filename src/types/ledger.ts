@@ -8,6 +8,8 @@ export interface CompanyRepContact {
 export interface Company {
   id: string;
   name: string;
+  /** কোড নম্বর — যেমন PRN-01; ঐচ্ছিক, কোম্পানি শনাক্ত করতে ব্যবহৃত হয়। */
+  code?: string;
   contactPerson?: string;
   phone?: string;
   logoUrl?: string;

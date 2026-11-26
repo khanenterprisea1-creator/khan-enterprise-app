@@ -1100,6 +1100,11 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
               textClassName="text-xl font-extrabold"
             />
             <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-[#0f172a]">{company.name}</h1>
+            {company.code && (
+              <span className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700 whitespace-nowrap">
+                কোড: {company.code}
+              </span>
+            )}
             {isAdmin &&
               DEMO_COMPANY_IDS.includes(company.id as (typeof DEMO_COMPANY_IDS)[number]) && (
                 <span className="rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-950 whitespace-nowrap">
