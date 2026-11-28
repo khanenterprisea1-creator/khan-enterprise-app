@@ -91,6 +91,9 @@ interface DateRangeFilterBarProps {
   onSearchChange?: (q: string) => void;
   searchPlaceholder?: string;
   allowAll?: boolean;
+  /** When true, the date presets / from-to pickers are hidden and the range
+      stays locked to the single day in `value` (S.R. stock view). */
+  dateControlsHidden?: boolean;
   extraControls?: React.ReactNode;
   className?: string;
 }
@@ -110,6 +113,7 @@ export const DateRangeFilterBar: React.FC<DateRangeFilterBarProps> = ({
   onSearchChange,
   searchPlaceholder = 'খুঁজুন...',
   allowAll = true,
+  dateControlsHidden = false,
   extraControls,
   className = '',
 }) => {
@@ -127,57 +131,67 @@ export const DateRangeFilterBar: React.FC<DateRangeFilterBarProps> = ({
     >
       {/* Left: Quick Date Presets + From/To Date Pickers */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-          {visiblePresets.map((opt) => {
-            const active = value.preset === opt.key;
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => onChange(createDateRangePreset(opt.key, today))}
-                className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors whitespace-nowrap ${
-                  active
-                    ? 'bg-[#0f2942] text-white shadow-xs'
-                    : 'text-[#0f172a] hover:bg-slate-100'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+        {dateControlsHidden ? (
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-[#0f172a]">
+            <Calendar className="h-4 w-4 shrink-0 text-teal-700" />
+            {formatDateBn(value.fromDate || value.toDate, true)} · শুধু এই দিনের
+            স্টক
+          </div>
+        ) : (
+          <>
+            <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+              {visiblePresets.map((opt) => {
+                const active = value.preset === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => onChange(createDateRangePreset(opt.key, today))}
+                    className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors whitespace-nowrap ${
+                      active
+                        ? 'bg-[#0f2942] text-white shadow-xs'
+                        : 'text-[#0f172a] hover:bg-slate-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
 
-        {/* Custom From / To Date Pickers */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5">
-          <Calendar className="h-4 w-4 shrink-0 text-[#0f172a]" />
-          <input
-            type="date"
-            value={value.fromDate}
-            onChange={(e) =>
-              onChange({
-                preset: 'custom',
-                fromDate: e.target.value,
-                toDate: value.toDate,
-              })
-            }
-            aria-label="শুরুর তারিখ"
-            className="font-mono-tabular bg-transparent text-sm font-semibold text-[#0f172a] focus:outline-none"
-          />
-          <span className="text-sm font-semibold text-[#1e293b]">থেকে</span>
-          <input
-            type="date"
-            value={value.toDate}
-            onChange={(e) =>
-              onChange({
-                preset: 'custom',
-                fromDate: value.fromDate,
-                toDate: e.target.value,
-              })
-            }
-            aria-label="শেষ তারিখ"
-            className="font-mono-tabular bg-transparent text-sm font-semibold text-[#0f172a] focus:outline-none"
-          />
-        </div>
+            {/* Custom From / To Date Pickers */}
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5">
+              <Calendar className="h-4 w-4 shrink-0 text-[#0f172a]" />
+              <input
+                type="date"
+                value={value.fromDate}
+                onChange={(e) =>
+                  onChange({
+                    preset: 'custom',
+                    fromDate: e.target.value,
+                    toDate: value.toDate,
+                  })
+                }
+                aria-label="শুরুর তারিখ"
+                className="font-mono-tabular bg-transparent text-sm font-semibold text-[#0f172a] focus:outline-none"
+              />
+              <span className="text-sm font-semibold text-[#1e293b]">থেকে</span>
+              <input
+                type="date"
+                value={value.toDate}
+                onChange={(e) =>
+                  onChange({
+                    preset: 'custom',
+                    fromDate: value.fromDate,
+                    toDate: e.target.value,
+                  })
+                }
+                aria-label="শেষ তারিখ"
+                className="font-mono-tabular bg-transparent text-sm font-semibold text-[#0f172a] focus:outline-none"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right: Search & Extra Controls */}
@@ -207,7 +221,7 @@ export const DateRangeFilterBar: React.FC<DateRangeFilterBarProps> = ({
 
         {extraControls}
 
-        {isFiltered && (
+        {isFiltered && !dateControlsHidden && (
           <button
             type="button"
             onClick={() => {

@@ -2662,9 +2662,13 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
             </div>
           </div>
 
+          {/* S.R. sees only the selected day's stock: the range stays locked to
+              that single day (synced in the effect above) and the date-range
+              controls are hidden. Sales history stays open for any day. */}
           <DateRangeFilterBar
             value={stockDateRange}
             onChange={setStockDateRange}
+            dateControlsHidden={!isAdmin}
             searchQuery={stockSearch}
             onSearchChange={setStockSearch}
             searchPlaceholder="প্রোডাক্ট বা ইউনিট খুঁজুন..."
