@@ -447,6 +447,17 @@ export function saveLedgerData(data: LedgerData): Promise<boolean> {
   return promise;
 }
 
+// Push a pending debounced cloud save right now instead of waiting out
+// the ~500ms debounce — used after a final save so one press of
+// "চূড়ান্ত সংরক্ষণ করুন" is permanent immediately.
+export function flushPendingCloudSave(): void {
+  if (cloudSaveTimer) {
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = null;
+    void flushCloudSave();
+  }
+}
+
 // If the tab is hidden with a save still debounced, push it right away
 // instead of waiting — the offline cache already holds the data either way.
 if (typeof document !== 'undefined') {

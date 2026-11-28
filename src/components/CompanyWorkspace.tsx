@@ -40,6 +40,7 @@ import {
   DEMO_COMPANY_IDS,
   downloadCompanyDayCsv,
   downloadStockReportCsv,
+  flushPendingCloudSave,
   formatDateBn,
   formatMonthBn,
   formatNumber,
@@ -822,6 +823,11 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
     setDraftSavedAt(null);
     setDraftRevision((r) => r + 1);
     triggerSavedNotice();
+    // One press must be permanent: push the save to the cloud right away
+    // instead of waiting out the debounce. The delay lets the App-level
+    // save effect schedule the write first; if it hasn't, the normal
+    // debounce still fires, so nothing is lost either way.
+    window.setTimeout(() => flushPendingCloudSave(), 300);
   };
 
   const companyHistory = useMemo(() => {
@@ -2302,7 +2308,7 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
                   className="inline-flex min-h-[44px] sm:min-h-0 w-full sm:w-auto items-center justify-center gap-1.5 rounded-lg bg-teal-700 px-4 py-2.5 sm:py-2 text-sm font-bold text-white transition-colors hover:bg-teal-800 whitespace-nowrap shrink-0"
                 >
                   <Check className="h-4 w-4" />
-                  {savedNotice ? 'হিসাব আপডেট হয়েছে' : 'সেভ / হিসাব আপডেট'}
+                  {savedNotice ? 'হিসাব আপডেট হয়েছে' : 'চূড়ান্ত সংরক্ষণ করুন'}
                 </button>
               </div>
             )}
