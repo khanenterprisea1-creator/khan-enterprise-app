@@ -287,6 +287,77 @@ export function loadCachedLedgerData(): LedgerData {
 }
 
 /**
+ * Merge the offline cache with the cloud row, item by item, instead of
+ * letting the cloud row wholesale replace local data. The single-row
+ * storage is last-write-wins: a device whose cache holds 0 entries would
+ * otherwise wipe entries another device saved, and a device that saved a
+ * day's sales would lose them the next time it loaded a stale cloud row
+ * — the user experiences that as "that date's data doesn't save".
+ * Union by id; the version with the later updatedAt/createdAt wins, and
+ * an item that exists on only one side is kept. Companies and authConfig
+ * still come from the cloud only. Tradeoff: an item deleted on one device
+ * can come back if another device still holds it — re-delete it once and
+ * it stays deleted after every device has synced.
+ */
+function mergeLedgerData(local: LedgerData, cloud: LedgerData): LedgerData {
+  const newer = <T extends { updatedAt?: string; createdAt?: string }>(
+    a: T | undefined,
+    b: T | undefined
+  ): T | undefined => {
+    if (!a) return b;
+    if (!b) return a;
+    const ts = (x: T) => x.updatedAt ?? x.createdAt ?? '';
+    // Tie → keep the local copy: it is at least as fresh as what this
+    // device last saw.
+    return ts(b) > ts(a) ? b : a;
+  };
+
+  const mergeRecords = <T extends { updatedAt?: string; createdAt?: string }>(
+    localRec: Record<string, T>,
+    cloudRec: Record<string, T>
+  ): Record<string, T> => {
+    const out: Record<string, T> = { ...cloudRec };
+    for (const [key, localItem] of Object.entries(localRec)) {
+      const merged = newer(localItem, cloudRec[key]);
+      if (merged) out[key] = merged;
+    }
+    return out;
+  };
+
+  const mergeLists = <
+    T extends { id: string; updatedAt?: string; createdAt?: string },
+  >(
+    localList: T[],
+    cloudList: T[]
+  ): T[] => {
+    const byId = new Map<string, T>();
+    for (const item of cloudList) byId.set(item.id, item);
+    for (const item of localList) {
+      const merged = newer(item, byId.get(item.id));
+      if (merged) byId.set(item.id, merged);
+    }
+    return [...byId.values()];
+  };
+
+  return {
+    ...cloud,
+    entries: mergeRecords(local.entries, cloud.entries),
+    products: mergeLists(local.products, cloud.products),
+    cashTransactions: mergeLists(local.cashTransactions, cloud.cashTransactions),
+    companyLedgerEntries: mergeLists(
+      local.companyLedgerEntries,
+      cloud.companyLedgerEntries
+    ),
+    stockMovements: mergeLists(local.stockMovements, cloud.stockMovements),
+    customers: mergeLists(local.customers, cloud.customers),
+    customerCreditEntries: mergeLists(
+      local.customerCreditEntries,
+      cloud.customerCreditEntries
+    ),
+  };
+}
+
+/**
  * Load the ledger: Supabase first, offline cache as fallback. Never throws —
  * on any cloud failure it returns the cached copy and marks status 'offline'.
  */
@@ -309,9 +380,13 @@ export async function loadLedgerData(): Promise<LedgerData> {
       return cached;
     }
     const normalized = normalizeLedgerData(data.data as Partial<LedgerData>);
-    writeCache(normalized);
+    // Merge, don't replace: the cloud row may be missing entries this
+    // device already saved (see mergeLedgerData). The save effect then
+    // upserts the merged data, so the cloud heals itself on next save.
+    const merged = mergeLedgerData(cached, normalized);
+    writeCache(merged);
     setCloudSyncStatus('synced');
-    return normalized;
+    return merged;
   } catch (err) {
     console.error('Cloud load failed, using offline cache:', err);
     setCloudSyncStatus('offline');

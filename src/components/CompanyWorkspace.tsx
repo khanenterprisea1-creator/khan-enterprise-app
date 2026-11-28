@@ -210,7 +210,13 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     if (!isAdmin) return today;
-    return loadLastCompanyDate(company.id) ?? today;
+    // Always open on TODAY. Restoring the last-used date made the sheet
+    // silently open on an old date (e.g. Nov 25), so "today's" sales were
+    // saved under that old date and the current day looked empty — the
+    // user experiences that as "today's data doesn't save". The last date
+    // is still restored when it IS today (same-day continue).
+    const last = loadLastCompanyDate(company.id);
+    return last === today ? last : today;
   });
   const [showProductManager, setShowProductManager] = useState<boolean>(false);
   const [confirmDeleteCompany, setConfirmDeleteCompany] = useState<boolean>(false);
@@ -278,8 +284,15 @@ export const CompanyWorkspace: React.FC<CompanyWorkspaceProps> = ({
 
     const hasDraftCells =
       draft.draftCells && Object.keys(draft.draftCells).length > 0;
+    // The draft is persisted right after every save, so its timestamp is
+    // always a few ms newer than the saved entry's — that must NOT count
+    // as "newer", or a stale draft would roll back the fresh entry when
+    // the day is reopened. Only a draft saved clearly after the entry
+    // (2s+) may overwrite it.
+    const savedAt = savedEntry?.updatedAt ? Date.parse(savedEntry.updatedAt) : NaN;
+    const draftAt = Date.parse(draft.updatedAt);
     const isDraftNewer =
-      !savedEntry || draft.updatedAt > (savedEntry.updatedAt ?? '');
+      !savedEntry || Number.isNaN(savedAt) || draftAt - savedAt > 2000;
 
     if (hasDraftCells) {
       setDraftCells((prev) => ({ ...prev, ...draft.draftCells }));
